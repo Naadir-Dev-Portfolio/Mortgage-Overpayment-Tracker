@@ -77,8 +77,6 @@ It supports two-phase rate scenarios (e.g. a 2-year fixed at 4.6% rolling onto a
   <img src="./screens/screen2.png" alt="Analysis, payment composition & annual interest" width="88%" />
   <br /><br />
   <img src="./screens/screen3.png" alt="Scenarios, four way overpayment comparison" width="88%" />
-  <br /><br />
-  <img src="./screens/screen4.png" alt="Schedule, full amortisation table" width="88%" />
 </div>
 
 </details>
