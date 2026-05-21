@@ -72,11 +72,11 @@ It supports two-phase rate scenarios (e.g. a 2-year fixed at 4.6% rolling onto a
 <br />
 
 <div align="center">
-  <img src="./portfolio/screen1.png" alt="Analysis" width="88%" />
+  <img src="./portfolio/Screen1.png" alt="Analysis" width="88%" />
   <br /><br />
-  <img src="./portfolio/screen2.png" alt="Scenarios" width="88%" />
+  <img src="./portfolio/Screen2.png" alt="Scenarios" width="88%" />
   <br /><br />
-  <img src="./portfolio/screen3.png" alt="Schedules" width="88%" />
+  <img src="./portfolio/Screen3.png" alt="Schedules" width="88%" />
 </div>
 
 </details>
