@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 import sys, json, os, csv
+from pathlib import Path
 from math import log
 from datetime import date
 from dateutil.relativedelta import relativedelta
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QDoubleSpinBox, QSpinBox, QDateEdit,
-    QPushButton, QScrollArea, QFrame, QTabWidget,
+    QPushButton, QFrame, QTabWidget,
     QTableWidget, QTableWidgetItem, QHeaderView, QFileDialog, QSizePolicy,
     QMessageBox, QCheckBox, QAbstractSpinBox
 )
-from PyQt6.QtCore import Qt, QDate, QTimer
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt, QDate, QTimer, QSize, pyqtSignal
+from PyQt6.QtGui import QFont, QIcon, QPixmap
 import matplotlib
 matplotlib.use("QtAgg")
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -20,21 +21,26 @@ import matplotlib.ticker as mticker
 import numpy as np
 
 # ─────────────────────────────────────────────
-#  COLOUR PALETTE  (charcoal / coal dark theme)
+#  COLOUR PALETTE  (Document OCR Studio-inspired charcoal theme)
 # ─────────────────────────────────────────────
-BG_DARK  = "#16161A"
-CARD_BG  = "#202028"
-PANEL_BG = "#1A1A20"
-BORDER   = "#30303C"
-TEXT     = "#DCDCE6"
-TEXT_DIM = "#72728A"
+ROOT_DIR = Path(__file__).resolve().parent
+LOGO_PATH = ROOT_DIR / "images" / "logo.png"
 
-ACCENT   = "#7C6FF7"   # indigo-purple
-ACCENT2  = "#F06B6B"   # coral-red
-GREEN    = "#3DD68C"   # emerald
-YELLOW   = "#F4A13E"   # amber
+BG_DARK  = "#070909"
+CARD_BG  = "#0d1113"
+PANEL_BG = "#0a0d0f"
+INPUT_BG = "#050708"
+BORDER   = "#232b2f"
+TEXT     = "#f0f5f3"
+TEXT_DIM = "#94a19d"
 
-CHART_COLORS = [ACCENT, ACCENT2, GREEN, YELLOW, "#54A0FF", "#FF9F43", "#5F27CD"]
+ACCENT   = "#1fa99a"
+ACCENT2  = "#b8842a"
+GREEN    = "#6fc38d"
+YELLOW   = "#c58f2f"
+DANGER   = "#e05f57"
+
+CHART_COLORS = [ACCENT, GREEN, ACCENT2, "#5d8bb8", "#9b6cb7", DANGER, "#8fa260"]
 
 # ─────────────────────────────────────────────
 #  SMART SPINBOX  — select-all on focus / click
@@ -88,14 +94,18 @@ def stylesheet() -> str:
         border: 1px solid {BORDER};
         border-radius: 10px;
     }}
-    QFrame#panel {{
+    QFrame#sidebar {{
         background: {PANEL_BG};
         border-right: 1px solid {BORDER};
     }}
+    QFrame#topBar {{
+        background: {PANEL_BG};
+        border-bottom: 1px solid {BORDER};
+    }}
     QLabel {{ color: {TEXT}; background: transparent; }}
-    QLabel#heading   {{ font-size: 20px; font-weight: 700; color: {TEXT}; }}
-    QLabel#subhead   {{ font-size: 12px; font-weight: 600; color: {TEXT_DIM};
-                        padding-top: 6px; border-top: 1px solid {BORDER}; }}
+    QLabel#heading   {{ font-size: 21px; font-weight: 700; color: {TEXT}; }}
+    QLabel#subhead   {{ font-size: 12px; font-weight: 700; color: {TEXT_DIM};
+                        padding-top: 7px; border-top: 1px solid {BORDER}; }}
     QLabel#dim       {{ color: {TEXT_DIM}; font-size: 12px; }}
     QLabel#kpi       {{ font-size: 24px; font-weight: 700; color: {ACCENT}; }}
     QLabel#kpi2      {{ font-size: 24px; font-weight: 700; color: {GREEN};  }}
@@ -103,18 +113,18 @@ def stylesheet() -> str:
     QLabel#kpi4      {{ font-size: 24px; font-weight: 700; color: {ACCENT2};}}
 
     QDoubleSpinBox, QSpinBox, QDateEdit, QComboBox {{
-        background: {BG_DARK};
+        background: {INPUT_BG};
         color: {TEXT};
         border: 1px solid {BORDER};
         border-radius: 6px;
-        padding: 6px 10px;
+        padding: 5px 10px;
         font-size: 13px;
         selection-background-color: {ACCENT};
-        selection-color: #fff;
+        selection-color: #061312;
     }}
     QDoubleSpinBox::up-button, QSpinBox::up-button,
     QDoubleSpinBox::down-button, QSpinBox::down-button {{
-        width: 22px;
+        width: 21px;
         border: none;
         background: {CARD_BG};
         border-radius: 3px;
@@ -142,15 +152,15 @@ def stylesheet() -> str:
 
     QPushButton {{
         background: {ACCENT};
-        color: #fff;
+        color: #061312;
         border: none;
         border-radius: 7px;
         padding: 8px 18px;
         font-size: 13px;
         font-weight: 600;
     }}
-    QPushButton:hover   {{ background: #9088FF; }}
-    QPushButton:pressed {{ background: #5A52D5; }}
+    QPushButton:hover   {{ background: #38caba; }}
+    QPushButton:pressed {{ background: #1f8f83; }}
     QPushButton#secondary {{
         background: {CARD_BG};
         color: {TEXT};
@@ -161,9 +171,10 @@ def stylesheet() -> str:
         background: {GREEN};
         color: {BG_DARK};
     }}
-    QPushButton#green:hover {{ background: #50E8A0; }}
+    QPushButton#green:hover {{ background: #93dba8; }}
 
     QTabWidget::pane {{ border: none; background: {BG_DARK}; }}
+    QTabWidget::tab-bar {{ left: 0px; }}
     QTabBar::tab {{
         background: {CARD_BG};
         color: {TEXT_DIM};
@@ -174,7 +185,7 @@ def stylesheet() -> str:
         margin-right: 2px;
         border-radius: 8px 8px 0 0;
     }}
-    QTabBar::tab:selected {{ background: {ACCENT}; color: #fff; }}
+    QTabBar::tab:selected {{ background: {ACCENT}; color: #061312; }}
     QTabBar::tab:hover:!selected {{ background: {BORDER}; color: {TEXT}; }}
 
     QScrollBar:vertical {{
@@ -203,7 +214,7 @@ def stylesheet() -> str:
         font-size: 12px;
     }}
     QTableWidget::item {{ padding: 5px 10px; }}
-    QTableWidget::item:selected {{ background: {ACCENT}; color: #fff; }}
+    QTableWidget::item:selected {{ background: {ACCENT}; color: #061312; }}
     QHeaderView::section {{
         background: {PANEL_BG};
         color: {TEXT_DIM};
@@ -218,7 +229,7 @@ def stylesheet() -> str:
         width: 15px; height: 15px;
         border-radius: 4px;
         border: 1px solid {BORDER};
-        background: {BG_DARK};
+        background: {INPUT_BG};
     }}
     QCheckBox::indicator:checked {{
         background: {ACCENT};
@@ -446,27 +457,42 @@ class MetricCard(QFrame):
 # ─────────────────────────────────────────────
 #  SIDEBAR INPUT PANEL
 # ─────────────────────────────────────────────
-class Sidebar(QScrollArea):
-    calculate_requested = __import__("PyQt6.QtCore", fromlist=["pyqtSignal"]).pyqtSignal()
+class Sidebar(QFrame):
+    calculate_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setObjectName("panel")
-        self.setWidgetResizable(True)
-        self.setFixedWidth(300)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setObjectName("sidebar")
+        self.setFixedWidth(318)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
-        inner = QWidget()
-        self.setWidget(inner)
-        L = QVBoxLayout(inner)
-        L.setContentsMargins(14, 14, 14, 18)
-        L.setSpacing(10)
+        L = QVBoxLayout(self)
+        L.setContentsMargins(18, 16, 18, 18)
+        L.setSpacing(8)
 
         # ── title ──
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 6)
+        title_row.setSpacing(12)
+        if LOGO_PATH.exists():
+            logo = QLabel()
+            logo.setFixedSize(36, 36)
+            logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            logo.setPixmap(
+                QPixmap(str(LOGO_PATH)).scaled(
+                    QSize(34, 34),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+            title_row.addWidget(logo)
         t = QLabel("Mortgage Details")
         t.setObjectName("heading")
         t.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
-        L.addWidget(t)
+        title_row.addWidget(t)
+        title_row.addStretch()
+        L.addLayout(title_row)
 
         # ── Property & loan ──
         L.addWidget(self._sec("Property & Loan"))
@@ -509,7 +535,10 @@ class Sidebar(QScrollArea):
         self.lump_mo  = SmartIntSpin(); self.lump_mo.setRange(1, 600); self.lump_mo.setPrefix("Mo ")
         self.lump_amt = SmartSpin();    self.lump_amt.setRange(0, 500_000); self.lump_amt.setPrefix("£ ")
         self.lump_amt.setDecimals(0);   self.lump_amt.setSingleStep(1000); self.lump_amt.setGroupSeparatorShown(True)
-        ls_row.addWidget(self.lump_mo); ls_row.addWidget(self.lump_amt)
+        ls_row.setSpacing(8)
+        self.lump_mo.setMinimumWidth(96)
+        self.lump_amt.setMinimumWidth(118)
+        ls_row.addWidget(self.lump_mo, 1); ls_row.addWidget(self.lump_amt, 1)
         L.addLayout(ls_row)
         b_add = QPushButton("+ Add Lump Sum"); b_add.setObjectName("secondary")
         b_add.clicked.connect(self._add_lump); L.addWidget(b_add)
@@ -535,9 +564,10 @@ class Sidebar(QScrollArea):
         # ── Save / Load ──
         L.addWidget(self._sec("Session"))
         sl = QHBoxLayout()
+        sl.setSpacing(8)
         bs = QPushButton("Save"); bs.setObjectName("secondary"); bs.clicked.connect(self._save)
         bl = QPushButton("Load"); bl.setObjectName("secondary"); bl.clicked.connect(self._load)
-        sl.addWidget(bs); sl.addWidget(bl); L.addLayout(sl)
+        sl.addWidget(bs, 1); sl.addWidget(bl, 1); L.addLayout(sl)
 
         # ── Calculate ──
         L.addSpacing(4)
@@ -987,8 +1017,10 @@ class MortgageApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Mortgage Overpayment Dashboard")
-        self.resize(1420, 860)
-        self.setMinimumSize(1100, 680)
+        if LOGO_PATH.exists():
+            self.setWindowIcon(QIcon(str(LOGO_PATH)))
+        self.resize(1440, 930)
+        self.setMinimumSize(1180, 860)
         self._dark_titlebar()
 
         root = QWidget(); self.setCentralWidget(root)
@@ -1001,11 +1033,11 @@ class MortgageApp(QMainWindow):
 
         # Content
         content = QWidget()
+        content.setStyleSheet(f"background:{BG_DARK};")
         cl = QVBoxLayout(content); cl.setContentsMargins(0, 0, 0, 0); cl.setSpacing(0)
 
         # Header
-        hdr = QFrame(); hdr.setFixedHeight(52)
-        hdr.setStyleSheet(f"background:{PANEL_BG}; border-bottom:1px solid {BORDER};")
+        hdr = QFrame(); hdr.setObjectName("topBar"); hdr.setFixedHeight(52)
         hl  = QHBoxLayout(hdr); hl.setContentsMargins(18, 0, 18, 0)
         htitle = QLabel("Mortgage Overpayment Dashboard")
         htitle.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
@@ -1078,6 +1110,8 @@ class MortgageApp(QMainWindow):
 # ─────────────────────────────────────────────
 def main():
     app = QApplication(sys.argv)
+    if LOGO_PATH.exists():
+        app.setWindowIcon(QIcon(str(LOGO_PATH)))
     app.setStyleSheet(stylesheet())
     win = MortgageApp()
     win.show()

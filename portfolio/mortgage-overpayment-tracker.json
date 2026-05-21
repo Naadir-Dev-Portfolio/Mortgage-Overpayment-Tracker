@@ -3,17 +3,15 @@
   "category": "desktop",
   "n": 4,
   "title": "Mortgage Overpayment Tracker",
-  "img": "mortgageTrackerScreen.webp",
-  "imgs": [
-    "mortgageTrackerScreen.webp"
-  ],
+  "img": "mortgage-overpayment-tracker.png",
+  "imgFeatured": "mortgage-overpayment-tracker-featured.png",
   "desc": "Interactive mortgage dashboard, model overpayment scenarios, visualise interest saved, and see exactly when you'll be mortgage free.",
+  "code": "https://github.com/Naadir-Dev-Portfolio/Mortgage-Overpayment-Tracker/blob/main/main.py",
+  "details": "https://github.com/Naadir-Dev-Portfolio/Mortgage-Overpayment-Tracker/blob/main/README.md",
   "tags": [
     "python",
     "pyqt",
     "finance",
     "data-viz"
-  ],
-  "code": "https://github.com/Naadir-Dev-Portfolio/Mortgage-Overpayment-Tracker/blob/main/main.py",
-  "details": "https://github.com/Naadir-Dev-Portfolio/Mortgage-Overpayment-Tracker/blob/main/README.md"
+  ]
 }
